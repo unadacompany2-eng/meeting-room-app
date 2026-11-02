@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<title>ระบบจองห้องประชุม</title>
+<style>
+  :root { 
+    --primary: #06C755; 
+    --primary-dark: #05a648;
+    --bg: #f4f6f8; 
+    --card: #ffffff; 
+    --text: #1f2937; 
+    --sub: #6b7280; 
+    --border: #e5e7eb; 
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { 
+    margin: 0; 
+    font-family: -apple-system, "Segoe UI", "Helvetica Neue", "Noto Sans Thai", sans-serif; 
+    background: var(--bg); 
+    color: var(--text); 
+    padding-bottom: 30px; 
+  }
+  .header { 
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark)); 
+    color: #fff; 
+    padding: 24px 20px 36px; 
+    border-radius: 0 0 24px 24px; 
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(6,199,85,.2);
+  }
+  .header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+  .header p { margin: 8px 0 0; font-size: 13px; opacity: 0.9; font-weight: 500;}
+  .container { padding: 0 16px; margin-top: -20px; }
+  .card { 
+    background: var(--card); 
+    border-radius: 16px; 
+    padding: 20px; 
+    margin-bottom: 16px; 
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+  }
+  .card h2 { 
+    font-size: 15px; 
+    margin: 0 0 16px; 
+    color: var(--text); 
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2::before {
+    content: ''; width: 4px; height: 16px;
+    background: var(--primary); border-radius: 2px;
+  }
+  .room-item { 
+    padding: 14px; 
+    border: 1.5px solid var(--border); 
+    border-radius: 12px; 
+    margin-bottom: 10px; 
+    cursor: pointer; 
+    transition: all 0.2s;
+  }
+  .room-item.active { 
+    border-color: var(--primary); 
+    background: #f0fdf4; 
+    box-shadow: 0 2px 8px rgba(6,199,85,0.1);
+  }
+  .room-name { font-weight: 700; font-size: 15px; margin-bottom: 4px;}
+  .room-meta { font-size: 12px; color: var(--sub); }
+  
+  .slot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .slot { 
+    padding: 10px 4px; 
+    text-align: center; 
+    border: 1.5px solid var(--border); 
+    border-radius: 10px; 
+    font-size: 14px; 
+    cursor: pointer; 
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .slot.active { 
+    background: var(--primary); 
+    color: #fff; 
+    border-color: var(--primary); 
+    box-shadow: 0 2px 8px rgba(6,199,85,0.3);
+  }
+  .slot.disabled { background: #f3f4f6; color: #d1d5db; cursor: not-allowed; text-decoration: line-through;}
+  
+  .input { 
+    width: 100%; 
+    padding: 14px; 
+    border: 1.5px solid var(--border); 
+    border-radius: 12px; 
+    margin-bottom: 16px; 
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .input:focus { outline: none; border-color: var(--primary); background: #fafbfc; }
+  
+  .btn { 
+    width: 100%; 
+    padding: 16px; 
+    border: none; 
+    border-radius: 12px; 
+    background: var(--primary); 
+    color: #fff; 
+    font-weight: 700; 
+    font-size: 16px;
+    cursor: pointer; 
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(6,199,85,0.3);
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { background: #9ca3af; box-shadow: none; cursor: not-allowed; }
+  
+  .loading { text-align: center; padding: 30px 0; color: var(--sub); font-size: 14px;}
+  .spinner {
+    width: 24px; height: 24px; border: 3px solid var(--border);
+    border-top-color: var(--primary); border-radius: 50%;
+    animation: spin .8s linear infinite; margin: 0 auto 10px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📅 ระบบจองห้องประชุม</h1>
+  <p id="userName">กำลังโหลดข้อมูล...</p>
+</div>
+
+<div class="container">
+  <!-- ส่วนที่ 1: เลือกห้อง -->
+  <div class="card">
+    <h2>1. เลือกห้องประชุม</h2>
+    <div id="roomList" class="loading">
+      <div class="spinner"></div>กำลังโหลดรายชื่อห้อง...
+    </div>
+  </div>
+
+  <!-- ส่วนที่ 2: เลือกวันที่และเวลา -->
+  <div class="card">
+    <h2>2. เลือกวันที่และเวลา</h2>
+    <input type="date" id="dateInput" class="input">
+    <div id="slotList" class="loading" style="padding: 10px 0;">กรุณาเลือกห้องประชุมก่อน</div>
+  </div>
+
+  <!-- ส่วนที่ 3: กรอกรายละเอียด -->
+  <div class="card">
+    <h2>3. รายละเอียดการจอง</h2>
+    <input type="text" id="purpose" class="input" placeholder="ระบุหัวข้อการประชุม...">
+    <button class="btn" id="submitBtn" disabled>ยืนยันการจอง</button>
+  </div>
+</div>
+
+<script>
+  // ==========================================
+  // 🔴 แก้ไข 2 จุดนี้ (สำคัญมาก) 🔴
+  // ==========================================
+  const LIFF_ID = 'ใส่_LIFF_ID_ของคุณตรงนี้'; 
+  const GAS_URL = 'ใส่_LINK_EXEC_ของคุณตรงนี้'; 
+  // ==========================================
+
+  let state = { 
+    user: null, 
+    rooms: [], 
+    selectedRoom: null, 
+    date: '', 
+    slot: null 
+  };
+  const $ = id => document.getElementById(id);
+
+  // 1. เริ่มต้นระบบ
+  async function init() {
+    // ตั้งค่าวันที่เริ่มต้นเป็นวันนี้
+    const today = new Date();
+    state.date = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    $('dateInput').value = state.date;
+    
+    // โหลดข้อมูลห้องทันที (ไม่ต้องรอ LINE)
+    loadRooms();
+
+    // เริ่มเชื่อมต่อ LINE (ทำงานเบื้องหลัง)
+    initLine();
+  }
+
+  // 2. ฟังก์ชันยิง API ไปที่ Google Apps Script
+  async function apiCall(action, dateParam = null, payload = null) {
+    let url = `${GAS_URL}?action=${action}`;
+    if (dateParam) url += `&date=${dateParam}`;
+    if (payload) url += `&payload=${encodeURIComponent(JSON.stringify(payload))}`;
+    
+    const res = await fetch(url);
+    return await res.json();
+  }
+
+  // 3. โหลดรายชื่อห้อง
+  async function loadRooms() {
+    try {
+      const res = await apiCall('getRooms');
+      if (!res.ok) throw new Error(res.error);
+      
+      state.rooms = res.rooms;
+      $('roomList').classList.remove('loading');
+      
+      if (state.rooms.length === 0) {
+        $('roomList').innerHTML = '<div style="text-align:center; color:#666;">ไม่มีห้องประชุมในระบบ</div>';
+        return;
+      }
+
+      $('roomList').innerHTML = state.rooms.map(r => `
+        <div class="room-item" data-id="${r.roomId}" onclick="selectRoom('${r.roomId}')">
+          <div class="room-name">${r.roomName}</div>
+          <div class="room-meta">👥 ความจุ ${r.capacity} คน | 🛠️ ${r.equipment}</div>
+        </div>
+      `).join('');
+    } catch (err) {
+      $('roomList').innerHTML = `<div style="color:#ef4444; text-align:center;">โหลดข้อมูลไม่สำเร็จ: ${err.message}</div>`;
+    }
+  }
+
+  // 4. เลือกห้อง
+  window.selectRoom = function(id) {
+    state.selectedRoom = id; 
+    state.slot = null;
+    document.querySelectorAll('.room-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === id);
+    });
+    loadSlots(); 
+    checkBtn();
+  };
+
+  // 5. โหลดเวลา
+  async function loadSlots() {
+    if (!state.selectedRoom) return;
+    $('slotList').innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:0 auto;"></div>'; 
+    $('slotList').classList.remove('loading');
+
+    try {
+      const res = await apiCall('getBookings', state.date);
+      const booked = res.bookings.filter(b => b.roomId === state.selectedRoom);
+      
+      let html = '<div class="slot-grid">';
+      for (let h = 8; h < 18; h++) {
+        const timeStr = String(h).padStart(2,'0') + ':00';
+        const start = new Date(state.date + 'T' + timeStr + ':00').getTime();
+        const end = start + 3600000;
+        
+        const isBooked = booked.some(b => {
+          const bs = new Date(b.startTime).getTime(); 
+          const be = new Date(b.endTime).getTime();
+          return start < be && end > bs;
+        });
+
+        const activeClass = (state.slot === start) ? 'active' : '';
+        html += `<div class="slot ${isBooked ? 'disabled' : ''} ${activeClass}" 
+                      onclick="selectSlot(${start})">${timeStr}</div>`;
+      }
+      html += '</div>';
+      $('slotList').innerHTML = html;
+    } catch (err) {
+      $('slotList').innerHTML = `<div style="color:#ef4444; text-align:center;">โหลดเวลาไม่สำเร็จ: ${err.message}</div>`;
+    }
+  }
+
+  // 6. เลือกเวลา
+  window.selectSlot = function(start) {
+    state.slot = start;
+    document.querySelectorAll('.slot').forEach(el => {
+      el.classList.remove('active');
+      // หา element ที่ตรงกับเวลาและไม่ถูก disable
+      if (el.innerHTML.includes(new Date(start).getHours().toString().padStart(2,'0')) && !el.classList.contains('disabled')) {
+        el.classList.add('active');
+      }
+    });
+    checkBtn();
+  };
+
+  // 7. เปลี่ยนวันที่
+  $('dateInput').addEventListener('change', e => { 
+    state.date = e.target.value; 
+    loadSlots(); 
+  });
+
+  // 8. ตรวจสอบปุ่ม
+  function checkBtn() { 
+    $('submitBtn').disabled = !(state.selectedRoom && state.slot); 
+  }
+
+  // 9. กดปุ่มจอง
+  $('submitBtn').addEventListener('click', async () => {
+    const purpose = $('purpose').value.trim();
+    if (!purpose) return alert('กรุณากรอกหัวข้อการประชุม');
+    
+    const btn = $('submitBtn'); 
+    btn.disabled = true; 
+    btn.innerText = 'กำลังบันทึก...';
+    
+    try {
+      const res = await apiCall('createBooking', null, {
+        roomId: state.selectedRoom,
+        userId: state.user ? state.user.userId : 'guest',
+        userName: state.user ? state.user.displayName : 'ผู้ใช้ทั่วไป',
+        startTime: new Date(state.slot).toISOString(),
+        endTime: new Date(state.slot + 3600000).toISOString(),
+        purpose: purpose
+      });
+      
+      if (res.ok) { 
+        alert('✅ จองสำเร็จ!'); 
+        $('purpose').value = ''; 
+        state.slot = null;
+        loadSlots(); 
+        checkBtn();
+      } else {
+        alert('❌ จองไม่สำเร็จ: ' + res.error);
+      }
+    } catch (err) { 
+      alert('❌ เชื่อมต่อล้มเหลว: ' + err.message); 
+    } finally { 
+      btn.innerText = 'ยืนยันการจอง'; 
+      checkBtn(); 
+    }
+  });
+
+  // 10. เชื่อมต่อ LINE LIFF
+  async function initLine() {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (liff.isLoggedIn()) {
+        const profile = await liff.getProfile();
+        state.user = profile; 
+        $('userName').innerText = '👤 ' + profile.displayName;
+      } else {
+        // ถ้ายังไม่ล็อกอิน ให้ล็อกอิน
+        liff.login();
+      }
+    } catch (e) { 
+      console.log("LIFF Error:", e);
+      $('userName').innerText = '⚠️ โปรดเปิดผ่านแอป LINE'; 
+    }
+  }
+
+  // เริ่มทำงาน
+  init();
+</script>
+</body>
+</html>
